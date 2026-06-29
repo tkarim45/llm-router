@@ -22,14 +22,14 @@ def split(queries, test_frac=0.4, seed=7):
     return train, test
 
 
-def run(threshold: float = 0.5, mock: bool = False) -> dict:
+def run(threshold: float = 0.5, mock: bool = False, provider: str = "auto") -> dict:
     qs = dataset()
     train, test = split(qs)
     router = LearnedRouter(threshold=threshold).fit(train)
-    provider = MockProvider() if mock else get_provider()
-    results = compare(test, router, provider)
+    prov = MockProvider() if mock else get_provider(provider)
+    results = compare(test, router, prov)
     results["_meta"] = {"train_n": len(train), "test_n": len(test),
-                        "provider": type(provider).__name__, "threshold": threshold}
+                        "provider": type(prov).__name__, "threshold": threshold}
     return results
 
 
@@ -37,9 +37,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Benchmark LLM routing vs always-small/always-large.")
     ap.add_argument("--threshold", type=float, default=0.5)
     ap.add_argument("--mock", action="store_true", help="force offline mock provider")
+    ap.add_argument("--provider", choices=["auto", "mock", "bedrock", "anthropic"],
+                    default="auto", help="model backend (default: auto-detect)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
-    res = run(threshold=args.threshold, mock=args.mock)
+    res = run(threshold=args.threshold, mock=args.mock, provider=args.provider)
     if args.json:
         print(json.dumps(res, indent=2))
         return

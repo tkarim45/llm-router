@@ -1,5 +1,12 @@
 name: CI
-on: [push, pull_request]
+# Does NOT run on pushes to main (per request) — tests use the key-free mock provider
+# and never call Bedrock, but main pushes are excluded anyway. Runs on PRs, other
+# branches, and manual dispatch.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -9,4 +16,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest -q
+      - run: pytest -q   # mock provider only — no network / no Bedrock calls

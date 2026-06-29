@@ -6,8 +6,9 @@ can still answer it correctly, and **measures** the cost/quality tradeoff agains
 baselines instead of asserting it.
 
 ```bash
-llm-router --mock          # offline, deterministic
-llm-router                 # uses real Claude tiers if ANTHROPIC_API_KEY is set
+llm-router --mock                 # offline, deterministic (reproduces the numbers below)
+llm-router --provider bedrock     # real Claude on AWS Bedrock (creds from .env)
+llm-router                        # auto: Bedrock if AWS creds, else Anthropic API, else mock
 llm-router --json
 ```
 
@@ -50,23 +51,54 @@ The transparent length+keyword heuristic generalizes because it keys on the thin
 actually makes a query hard. The learned router is kept in the benchmark precisely to show
 this — a clean reminder that the fancier model isn't automatically the better router.
 
-## Real Claude mode
+## Validated on real AWS Bedrock
 
-With `ANTHROPIC_API_KEY` set, the small tier maps to `claude-haiku-4-5` and the large to
-`claude-opus-4-8`; answers are graded by the large model as judge, and cost is computed from
-real token usage. No key → deterministic mock, so CI and reviewers reproduce the numbers for free.
+The mock numbers above are deterministic so CI and reviewers reproduce them for free. To
+confirm the routing actually pays off against *real* models, the same benchmark was run end to
+end on **AWS Bedrock** — small = `claude-haiku-4-5`, large = `claude-opus-4-6`, every answer
+graded by Opus as judge, cost from real token usage (`llm-router --provider bedrock`, 24
+held-out queries, **total spend ≈ $0.22**):
+
+| strategy | accuracy | cost ($) | % → large | cost vs always-large |
+|---|---|---|---|---|
+| always-small | 0.833 | 0.00426 | 0% | 5% of cost |
+| always-large | 0.917 | 0.08205 | 100% | — |
+| heuristic router | 0.875 | 0.07100 | 46% | 87% of cost (−13%) |
+| **learned router** | **0.917** | **0.05802** | 46% | **71% of cost (−29%)** |
+
+**On real Bedrock the learned router matches always-large quality (0.917) at 71% of the cost — a
+29% saving for zero quality loss.** Two honest differences from the mock run, both expected:
+
+- **Real Haiku is far more capable than the mock's worst case.** always-small scores **0.833**,
+  not 0.5 — a cheap model genuinely answers most queries, which is *why* routing (not
+  always-large) is the right default. The mock deliberately models a weaker small model to make
+  the routing logic measurable; real models shrink the gap but the ranking holds.
+- **Which router wins flips between mock and real.** The heuristic wins on the synthetic labels
+  (structure-only signal); the learned router wins on Bedrock (it adapts to where real Haiku
+  actually fails). The benchmark ships both and lets the data pick — `recommended` is computed,
+  not hard-coded.
+
+## Backends
+
+`get_provider()` auto-selects: **AWS Bedrock** if AWS creds are present (the repo convention —
+`AnthropicBedrock`, `global.anthropic.*` inference-profile IDs, creds from `.env`), else the
+**first-party Anthropic API** if `ANTHROPIC_API_KEY` is set, else the **deterministic mock**.
+Force one with `--provider {mock,bedrock,anthropic}` or `LLM_ROUTER_PROVIDER`. Copy
+`.env.example` → `.env` for the Bedrock path (`.env` is gitignored). Mock needs no keys, so CI
+and reviewers reproduce every mock number at zero cost.
 
 ## Install & test
 
 ```bash
-pip install -e ".[dev]"      # add ".[dev,claude]" for the real-Claude path
-pytest -q                    # 7 passed
+pip install -e ".[dev]"             # mock path
+pip install -e ".[dev,bedrock]"     # + AWS Bedrock backend (anthropic[bedrock], python-dotenv)
+pytest -q                           # 7 passed (mock provider — no network)
 ```
 
 ## Stack
 
-scikit-learn (TF-IDF + logistic regression), pure-Python heuristic router, Anthropic SDK
-(optional), real per-token cost model.
+scikit-learn (TF-IDF + logistic regression), pure-Python heuristic router, AWS Bedrock via the
+`anthropic[bedrock]` SDK / first-party Anthropic SDK (optional), real per-token cost model.
 
 ## License
 
