@@ -28,12 +28,12 @@ llm-router --json
 `llm-router --mock` on 24 held-out queries (cost model: $0.80/1M small "haiku-class" vs
 $15/1M large "opus-class"):
 
-| strategy | accuracy | cost ($) | % → large | vs always-large |
+| strategy | accuracy | cost ($) | % → large | cost vs always-large |
 |---|---|---|---|---|
-| always-small | 0.500 | 0.00258 | 0% | — |
+| always-small | 0.500 | 0.00258 | 0% | 5% of cost |
 | always-large | 1.000 | 0.04839 | 100% | — |
-| **heuristic router** | **0.958** | **0.02492** | 46% | **−51% cost** |
-| learned router | 0.833 | 0.02368 | 46% | −51% cost |
+| **heuristic router** | **0.958** | **0.02492** | 46% | **51% of cost (−49%)** |
+| learned router | 0.833 | 0.02368 | 46% | 49% of cost (−51%) |
 
 **Recommended: the heuristic router — 96% of always-large quality at 51% of the cost.**
 
