@@ -12,6 +12,13 @@ llm-router                        # auto: Bedrock if AWS creds, else Anthropic A
 llm-router --json
 ```
 
+
+## Architecture
+
+![architecture](docs/assets/architecture.png)
+
+*Interactive/exportable version: [`docs/assets/architecture.html`](docs/assets/architecture.html).*
+
 ## How it works
 
 1. **Difficulty labels.** A query set tagged `easy` / `hard`, where `hard` means a cheap
